@@ -1,5 +1,6 @@
 import 'backend/iap_backend.dart';
 import 'iap_error_message.dart';
+import 'model/iap_enums.dart';
 import 'model/iap_plan.dart';
 import 'model/iap_purchase_update.dart';
 import 'model/iap_status.dart';
@@ -55,11 +56,13 @@ class IapRepository {
   Future<String?> buy({
     required String productId,
     required String accountToken,
+    IapBillingCycle? cycle,
   }) async {
     try {
       final started = await _store.buy(
         productId: productId,
         accountToken: accountToken,
+        cycle: cycle,
       );
       return started ? null : 'Could not start the purchase.';
     } catch (e) {

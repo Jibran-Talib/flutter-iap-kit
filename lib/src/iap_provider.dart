@@ -66,6 +66,10 @@ class IapProvider extends ChangeNotifier {
   /// several paths (purchase stream, restore, relaunch) and each must be
   /// verified once.
   final Set<String> _inFlightTokens = {};
+
+  /// Cycle the user picked per product id (Google puts monthly and yearly
+  /// under one id, so the purchase alone cannot tell them apart).
+  final Map<String, IapBillingCycle> _cycleByProduct = {};
   final Set<String> _activatedTokens = {};
 
   IapProvider({
@@ -195,12 +199,13 @@ class IapProvider extends ChangeNotifier {
       return;
     }
 
+    _cycleByProduct[productId] = plan.cycle;
     _emit(() {
       _activeProductId = productId;
       _purchaseStatus = IapActionStatus.processing;
       _message = null;
     });
-    iapLog('PURCHASE started product=$productId');
+    iapLog('PURCHASE started product=$productId cycle=${plan.cycle.name}');
 
     // Never charge twice: if the store already holds this user's purchase
     // (paid earlier, never activated), activate that instead.
@@ -221,6 +226,7 @@ class IapProvider extends ChangeNotifier {
     final error = await _repository.buy(
       productId: productId,
       accountToken: accountToken,
+      cycle: plan.cycle,
     );
 
     if (error != null) {
@@ -276,7 +282,7 @@ class IapProvider extends ChangeNotifier {
       if (restored.isEmpty && quiet) return;
 
       final response = await _repository.restore(
-        restored.map(IapVerifyParams.fromPurchase).toList(),
+        restored.map(_paramsFor).toList(),
       );
       iapLog(
         'RESTORE backend success=${response.success} '
@@ -334,6 +340,7 @@ class IapProvider extends ChangeNotifier {
       _message = null;
     });
     _activatedTokens.clear();
+    _cycleByProduct.clear();
   }
 
   Future<void> _handlePurchaseUpdates(List<IapPurchaseUpdate> updates) async {
@@ -455,9 +462,7 @@ class IapProvider extends ChangeNotifier {
       });
     }
 
-    final response = await _repository.verify(
-      IapVerifyParams.fromPurchase(purchase),
-    );
+    final response = await _repository.verify(_paramsFor(purchase));
 
     // A failed verification leaves the transaction unfinished on purpose so
     // the store hands it back (Restore / next launch). The payment is NOT
@@ -521,6 +526,12 @@ class IapProvider extends ChangeNotifier {
       }
     });
   }
+
+  IapVerifyParams _paramsFor(IapPurchaseUpdate purchase) =>
+      IapVerifyParams.fromPurchase(
+        purchase,
+        cycle: _cycleByProduct[purchase.productId],
+      );
 
   bool _isExpiredRejection(String? message) {
     final text = message?.toLowerCase() ?? '';

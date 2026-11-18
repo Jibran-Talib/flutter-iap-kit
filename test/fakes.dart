@@ -7,6 +7,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 class FakeBackend implements IapBackend {
   IapCatalog catalog = const IapCatalog(success: true);
   IapStatus status = const IapStatus(accountToken: 'acct-1');
+  final List<IapVerifyParams> verified = [];
   IapVerifyResult? verifyResult;
   IapRestoreResult? restoreResult;
   bool statusFails = false;
@@ -26,6 +27,7 @@ class FakeBackend implements IapBackend {
   @override
   Future<IapVerifyResult> verify(IapVerifyParams params) async {
     verifyCalls++;
+    verified.add(params);
     return verifyResult ?? IapVerifyResult(success: true, status: status);
   }
 
@@ -46,6 +48,7 @@ class FakeStore extends IapStoreService {
   List<IapPurchaseUpdate> restoreEmits = const [];
   String? buyError;
   final List<String> bought = [];
+  final List<IapBillingCycle?> boughtCycles = [];
   final List<String> completed = [];
 
   void emit(List<IapPurchaseUpdate> updates) => _controller.add(updates);
@@ -67,9 +70,14 @@ class FakeStore extends IapStoreService {
       ];
 
   @override
-  Future<bool> buy({required String productId, required String accountToken}) {
+  Future<bool> buy({
+    required String productId,
+    required String accountToken,
+    IapBillingCycle? cycle,
+  }) {
     if (buyError != null) throw buyError!;
     bought.add(productId);
+    boughtCycles.add(cycle);
     return Future.value(true);
   }
 

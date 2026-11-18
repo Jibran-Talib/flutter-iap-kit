@@ -10,3 +10,10 @@ Monetization, Subscriptions. One subscription group for plans a user must not ho
 
 ## Naming
 `<plan>_<cycle>`, e.g. `individual_basic_monthly`, `coach_pro_yearly`, `fai_programme_once`. Keep ids identical on both stores and in the backend.
+
+## One id, two base plans (Google Play)
+
+Google also allows ONE subscription id with several base plans (monthly + yearly under the same id). The kit supports it: the store returns one entry per base plan, `StorePlanMapper.pick` gives monthly the cheaper entry and yearly the dearer one, and `IapVerifyParams.cycle` carries the cycle the user picked to the backend (a purchase alone does not say which base plan it was). Rules for this layout:
+
+- The backend must accept a cycle hint and treat a missing one as unknown (a purchase re-delivered after a restart). Prefer separate ids per cycle when you can; it removes the ambiguity.
+- Never let two base plans of one id have the same price.

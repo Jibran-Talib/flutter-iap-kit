@@ -1,12 +1,16 @@
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 import '../iap_log.dart';
+import '../model/iap_enums.dart';
 import '../model/iap_purchase_update.dart';
+import 'store_plan_mapper.dart';
 
 /// The only file that talks to `package:in_app_purchase`.
 class IapStoreService {
   final InAppPurchase? _injected;
-  final Map<String, ProductDetails> _productCache = {};
+
+  /// All store entries per product id (Google lists one per base plan).
+  final Map<String, List<ProductDetails>> _productCache = {};
   final Map<String, IapPurchaseUpdate> _purchaseCache = {};
 
   IapStoreService({InAppPurchase? inAppPurchase}) : _injected = inAppPurchase;
@@ -37,7 +41,7 @@ class IapStoreService {
 
     _productCache
       ..clear()
-      ..addEntries(products.map((p) => MapEntry(p.id, p)));
+      ..addAll(StorePlanMapper.groupById(products));
 
     return products;
   }
@@ -45,14 +49,24 @@ class IapStoreService {
   /// Subscriptions and one-time products are both bought through
   /// `buyNonConsumable` (the plugin has no separate subscription call).
   /// [accountToken] is Apple's appAccountToken / Google's obfuscatedAccountId.
-  Future<bool> buy({required String productId, required String accountToken}) {
-    final product = _productCache[productId];
+  ///
+  /// [cycle] picks the right base plan when the store lists several entries
+  /// under one product id (see [StorePlanMapper.pick]).
+  Future<bool> buy({
+    required String productId,
+    required String accountToken,
+    IapBillingCycle? cycle,
+  }) {
+    final product = StorePlanMapper.pick(
+      _productCache[productId] ?? const [],
+      cycle,
+    );
     if (product == null) {
       throw 'This plan is not available in the store right now.';
     }
 
     iapLog(
-      'STORE ← launching purchase flow product=$productId '
+      'STORE ← launching purchase flow product=$productId cycle=${cycle?.name} '
       '(account token sent: ${accountToken.isNotEmpty})',
     );
     return _inAppPurchase.buyNonConsumable(

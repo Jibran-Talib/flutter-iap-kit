@@ -61,6 +61,7 @@ void main() {
     await provider.buyPlan(provider.subscriptionPlans.single);
     expect(provider.purchaseStatus, IapActionStatus.awaitingStoreConfirmation);
     expect(store.bought, ['plan_monthly']);
+    expect(store.boughtCycles, [IapBillingCycle.monthly]);
 
     store.emit([update('plan_monthly')]);
     await pump();
@@ -69,6 +70,8 @@ void main() {
     expect(provider.isPremium, isTrue);
     expect(store.completed, ['plan_monthly']);
     expect(backend.verifyCalls, 1);
+    // The cycle the user picked travels with the purchase to the backend.
+    expect(backend.verified.single.cycle, IapBillingCycle.monthly);
   });
 
   test('the same token delivered twice is verified once', () async {

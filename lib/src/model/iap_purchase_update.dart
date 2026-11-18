@@ -87,12 +87,26 @@ class IapVerifyParams {
   final String productId;
   final String purchaseToken;
 
-  const IapVerifyParams({required this.productId, required this.purchaseToken});
+  /// Which billing cycle the user picked. Google Play puts monthly and yearly
+  /// under ONE product id and a purchase does not say which base plan it was,
+  /// so the app remembers the cycle it launched. Null when unknown (a purchase
+  /// re-delivered after a restart): the backend must then decide or ask.
+  final IapBillingCycle? cycle;
 
-  factory IapVerifyParams.fromPurchase(IapPurchaseUpdate purchase) =>
+  const IapVerifyParams({
+    required this.productId,
+    required this.purchaseToken,
+    this.cycle,
+  });
+
+  factory IapVerifyParams.fromPurchase(
+    IapPurchaseUpdate purchase, {
+    IapBillingCycle? cycle,
+  }) =>
       IapVerifyParams(
         productId: purchase.productId,
         purchaseToken: purchase.purchaseToken,
+        cycle: cycle,
       );
 
   /// `android` or `ios`.
